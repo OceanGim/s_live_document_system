@@ -29,8 +29,7 @@ class UserInfoNotifier extends StateNotifier<UserModel?> {
 
   /// 사용자 정보 조회
   Future<void> _fetchUserInfo() async {
-    if (userId == null) {
-      state = null;
+    if (userId == null || !mounted) {
       return;
     }
 
@@ -43,7 +42,9 @@ class UserInfoNotifier extends StateNotifier<UserModel?> {
               .from('public_users')
               .select()
               .eq('user_id', userId!)
-              .single();
+              .maybeSingle(); // single 대신 maybeSingle 사용하여 결과가 없는 경우 에러 방지
+
+      if (!mounted) return; // 비동기 작업 후 마운트 상태 확인
 
       Logger.debug('사용자 정보 조회 결과: $userData', tag: 'UserInfoNotifier');
 
@@ -60,12 +61,7 @@ class UserInfoNotifier extends StateNotifier<UserModel?> {
           userType: userData['user_type'] ?? '',
           role: userData['role'] ?? 'user',
           companyName: userData['company_name'],
-          businessNumber: userData['business_number'],
-          representativeName: userData['representative_name'],
-          representativePhone: userData['representative_phone'],
-          platform: userData['platform'],
-          platformId: userData['platform_id'],
-          isEmailConfirmed: false, // emailConfirmed 속성이 없어 기본값으로 설정
+          isEmailConfirmed: userData['is_email_confirmed'] ?? false,
           createdAt: DateTime.parse(
             userData['created_at'] ?? DateTime.now().toIso8601String(),
           ),
@@ -75,11 +71,15 @@ class UserInfoNotifier extends StateNotifier<UserModel?> {
                   : null,
         );
 
-        state = userModel;
-        Logger.info('사용자 정보 로드 완료', tag: 'UserInfoNotifier');
+        if (mounted) {
+          state = userModel;
+          Logger.info('사용자 정보 로드 완료', tag: 'UserInfoNotifier');
+        }
       } else {
-        Logger.error('사용자 정보가 없습니다', tag: 'UserInfoNotifier');
-        state = null;
+        Logger.warning('사용자 정보가 없거나 불완전합니다', tag: 'UserInfoNotifier');
+        if (mounted) {
+          state = null;
+        }
       }
     } catch (e, stack) {
       Logger.error(
@@ -88,7 +88,9 @@ class UserInfoNotifier extends StateNotifier<UserModel?> {
         stackTrace: stack,
         tag: 'UserInfoNotifier',
       );
-      state = null;
+      if (mounted) {
+        state = null;
+      }
     }
   }
 
@@ -214,11 +216,6 @@ final allUsersProvider = FutureProvider<List<UserModel>>((ref) async {
             userType: data['user_type'] ?? '',
             role: data['role'] ?? 'user',
             companyName: data['company_name'],
-            businessNumber: data['business_number'],
-            representativeName: data['representative_name'],
-            representativePhone: data['representative_phone'],
-            platform: data['platform'],
-            platformId: data['platform_id'],
             isEmailConfirmed: data['is_email_confirmed'] ?? false,
             createdAt: DateTime.parse(
               data['created_at'] ?? DateTime.now().toIso8601String(),

@@ -19,16 +19,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late TextEditingController _displayNameController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
-
-  // 기업 정보 컨트롤러
   late TextEditingController _companyNameController;
-  late TextEditingController _businessNumberController;
-  late TextEditingController _representativeNameController;
-  late TextEditingController _representativePhoneController;
-
-  // 인플루언서 정보 컨트롤러
-  late TextEditingController _platformController;
-  late TextEditingController _platformIdController;
 
   bool _isLoading = false;
   bool _isEditing = false;
@@ -42,11 +33,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _phoneController = TextEditingController();
     _emailController = TextEditingController();
     _companyNameController = TextEditingController();
-    _businessNumberController = TextEditingController();
-    _representativeNameController = TextEditingController();
-    _representativePhoneController = TextEditingController();
-    _platformController = TextEditingController();
-    _platformIdController = TextEditingController();
 
     // 데이터 로드
     _loadUserData();
@@ -59,11 +45,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _phoneController.dispose();
     _emailController.dispose();
     _companyNameController.dispose();
-    _businessNumberController.dispose();
-    _representativeNameController.dispose();
-    _representativePhoneController.dispose();
-    _platformController.dispose();
-    _platformIdController.dispose();
     super.dispose();
   }
 
@@ -77,13 +58,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       if (userInfo.isCompany) {
         _companyNameController.text = userInfo.companyName ?? '';
-        _businessNumberController.text = userInfo.businessNumber ?? '';
-        _representativeNameController.text = userInfo.representativeName ?? '';
-        _representativePhoneController.text =
-            userInfo.representativePhone ?? '';
-      } else if (userInfo.isInfluencer) {
-        _platformController.text = userInfo.platform ?? '';
-        _platformIdController.text = userInfo.platformId ?? '';
       }
     }
   }
@@ -109,20 +83,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         phone: _phoneController.text.trim(),
         companyName:
             userInfo.isCompany ? _companyNameController.text.trim() : null,
-        businessNumber:
-            userInfo.isCompany ? _businessNumberController.text.trim() : null,
-        representativeName:
-            userInfo.isCompany
-                ? _representativeNameController.text.trim()
-                : null,
-        representativePhone:
-            userInfo.isCompany
-                ? _representativePhoneController.text.trim()
-                : null,
-        platform:
-            userInfo.isInfluencer ? _platformController.text.trim() : null,
-        platformId:
-            userInfo.isInfluencer ? _platformIdController.text.trim() : null,
       );
 
       // UserInfoProvider를 통해 사용자 정보 업데이트
@@ -134,12 +94,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       // 사용자 유형에 따른 추가 정보
       if (userInfo.isCompany) {
         updateData['company_name'] = updatedUser.companyName;
-        updateData['business_number'] = updatedUser.businessNumber;
-        updateData['representative_name'] = updatedUser.representativeName;
-        updateData['representative_phone'] = updatedUser.representativePhone;
-      } else if (userInfo.isInfluencer) {
-        updateData['platform'] = updatedUser.platform;
-        updateData['platform_id'] = updatedUser.platformId;
       }
 
       final success = await ref
@@ -337,7 +291,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
               const Divider(height: 32),
 
-              // 기업 또는 인플루언서 특화 정보 섹션
+              // 기업 정보 섹션 (기업인 경우)
               if (userInfo.isCompany) ...[
                 const Text(
                   '기업 정보',
@@ -356,96 +310,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return '기업명을 입력해주세요';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // 사업자등록번호
-                TextFormField(
-                  controller: _businessNumberController,
-                  decoration: const InputDecoration(
-                    labelText: '사업자등록번호',
-                    prefixIcon: Icon(Icons.numbers_outlined),
-                  ),
-                  enabled: _isEditing,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '사업자등록번호를 입력해주세요';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // 대표자명
-                TextFormField(
-                  controller: _representativeNameController,
-                  decoration: const InputDecoration(
-                    labelText: '대표자명',
-                    prefixIcon: Icon(Icons.person_outline),
-                  ),
-                  enabled: _isEditing,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '대표자명을 입력해주세요';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // 대표 연락처
-                TextFormField(
-                  controller: _representativePhoneController,
-                  decoration: const InputDecoration(
-                    labelText: '대표 연락처',
-                    prefixIcon: Icon(Icons.phone_outlined),
-                  ),
-                  enabled: _isEditing,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '대표 연락처를 입력해주세요';
-                    }
-                    return null;
-                  },
-                ),
-              ] else if (userInfo.isInfluencer) ...[
-                const Text(
-                  '인플루언서 정보',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-
-                // 송출 플랫폼
-                TextFormField(
-                  controller: _platformController,
-                  decoration: const InputDecoration(
-                    labelText: '송출 플랫폼',
-                    prefixIcon: Icon(Icons.stream_outlined),
-                  ),
-                  enabled: _isEditing,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '송출 플랫폼을 입력해주세요';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // 플랫폼 ID
-                TextFormField(
-                  controller: _platformIdController,
-                  decoration: const InputDecoration(
-                    labelText: '플랫폼 ID/채널명',
-                    prefixIcon: Icon(Icons.account_box_outlined),
-                  ),
-                  enabled: _isEditing,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '플랫폼 ID 또는 채널명을 입력해주세요';
                     }
                     return null;
                   },

@@ -2,32 +2,44 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:s_live_document_system/providers/auth_provider.dart';
 import 'package:s_live_document_system/providers/user_provider.dart';
+import 'package:s_live_document_system/screens/document/document_workflow_screen.dart';
+import 'package:s_live_document_system/screens/document/document_list_screen.dart';
 import 'package:s_live_document_system/screens/user/profile_screen.dart';
 
 /// 일반 사용자용 홈 화면
-class UserHomeScreen extends ConsumerWidget {
+class UserHomeScreen extends ConsumerStatefulWidget {
   /// 기본 생성자
   const UserHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<UserHomeScreen> createState() => _UserHomeScreenState();
+}
+
+class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
+  int _currentIndex = 0;
+
+  // 네비게이션 탭에 표시할 화면들
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      const DocumentWorkflowScreen(), // 메인 화면으로 문서 작성 워크플로우 화면 사용
+      const DocumentListScreen(), // 작성한 문서 목록
+      const ProfileScreen(), // 사용자 프로필
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // 사용자 정보 조회
     final userInfo = ref.watch(userInfoProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('스튜디오 대관 시스템'),
+        title: const Text('스튜디오 대관 서류 시스템'),
         actions: [
-          // 프로필 버튼
-          IconButton(
-            icon: const Icon(Icons.person),
-            tooltip: '내 프로필',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const ProfileScreen()),
-              );
-            },
-          ),
           // 로그아웃 버튼
           IconButton(
             icon: const Icon(Icons.logout),
@@ -38,67 +50,22 @@ class UserHomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (userInfo != null)
-              Text(
-                '${userInfo.displayName}님 환영합니다',
-                style: Theme.of(context).textTheme.titleLarge,
-              )
-            else
-              const Text('사용자 정보를 불러오는 중...'),
-            const SizedBox(height: 32),
-            const Text('일반 사용자용 홈 화면 (임시)', style: TextStyle(fontSize: 18)),
-            const SizedBox(height: 32),
-
-            // 빠른 접근 버튼들
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32.0),
-              child: Column(
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const ProfileScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.person),
-                    label: const Text('내 프로필 관리'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // TODO: 대여 요청 화면으로 이동
-                    },
-                    icon: const Icon(Icons.calendar_today),
-                    label: const Text('스튜디오 대여 신청'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // TODO: 내 예약 목록 화면으로 이동
-                    },
-                    icon: const Icon(Icons.list),
-                    label: const Text('내 예약 관리'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      body: _screens[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.description),
+            label: '대관 서류 작성',
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.folder), label: '내 서류 목록'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: '내 프로필'),
+        ],
       ),
     );
   }

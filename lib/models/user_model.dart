@@ -6,16 +6,11 @@ class UserModel {
     required this.id,
     required this.email,
     required this.displayName,
-    required this.phone,
-    required this.userType,
+    this.phone = '',
+    this.userType = '',
     required this.createdAt,
     this.role = 'user',
     this.companyName,
-    this.businessNumber,
-    this.representativeName,
-    this.representativePhone,
-    this.platform,
-    this.platformId,
     this.isEmailConfirmed = false,
     this.lastSignedIn,
   });
@@ -24,17 +19,12 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['id'],
-      email: json['email'],
+      email: json['email'] ?? '',
       displayName: json['display_name'] ?? '',
       phone: json['phone'] ?? '',
       userType: json['user_type'] ?? '',
       role: json['role'] ?? 'user',
       companyName: json['company_name'],
-      businessNumber: json['business_number'],
-      representativeName: json['representative_name'],
-      representativePhone: json['representative_phone'],
-      platform: json['platform'],
-      platformId: json['platform_id'],
       isEmailConfirmed: json['is_email_confirmed'] ?? false,
       createdAt:
           json['created_at'] != null
@@ -57,11 +47,6 @@ class UserModel {
       'user_type': userType,
       'role': role,
       'company_name': companyName,
-      'business_number': businessNumber,
-      'representative_name': representativeName,
-      'representative_phone': representativePhone,
-      'platform': platform,
-      'platform_id': platformId,
       'is_email_confirmed': isEmailConfirmed,
       'created_at': createdAt.toIso8601String(),
       'last_signed_in': lastSignedIn?.toIso8601String(),
@@ -88,21 +73,6 @@ class UserModel {
 
   /// 기업명 (기업 사용자 경우)
   final String? companyName;
-
-  /// 사업자 등록번호 (기업 사용자 경우)
-  final String? businessNumber;
-
-  /// 대표자명 (기업 사용자 경우)
-  final String? representativeName;
-
-  /// 대표 연락처 (기업 사용자 경우)
-  final String? representativePhone;
-
-  /// 송출 플랫폼 (인플루언서 경우)
-  final String? platform;
-
-  /// 플랫폼 ID/채널명 (인플루언서 경우)
-  final String? platformId;
 
   /// 이메일 인증 여부
   final bool isEmailConfirmed;
@@ -131,11 +101,6 @@ class UserModel {
     String? userType,
     String? role,
     String? companyName,
-    String? businessNumber,
-    String? representativeName,
-    String? representativePhone,
-    String? platform,
-    String? platformId,
     bool? isEmailConfirmed,
     DateTime? createdAt,
     DateTime? lastSignedIn,
@@ -148,11 +113,6 @@ class UserModel {
       userType: userType ?? this.userType,
       role: role ?? this.role,
       companyName: companyName ?? this.companyName,
-      businessNumber: businessNumber ?? this.businessNumber,
-      representativeName: representativeName ?? this.representativeName,
-      representativePhone: representativePhone ?? this.representativePhone,
-      platform: platform ?? this.platform,
-      platformId: platformId ?? this.platformId,
       isEmailConfirmed: isEmailConfirmed ?? this.isEmailConfirmed,
       createdAt: createdAt ?? this.createdAt,
       lastSignedIn: lastSignedIn ?? this.lastSignedIn,

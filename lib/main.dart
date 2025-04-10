@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -7,13 +9,14 @@ import 'package:s_live_document_system/screens/auth/login_screen.dart';
 import 'package:s_live_document_system/screens/home_screen.dart';
 import 'package:s_live_document_system/screens/supabase_test_screen.dart';
 import 'package:s_live_document_system/screens/supabase_connection_test.dart';
+import 'package:s_live_document_system/screens/admin/admin_home_screen.dart';
+import 'package:s_live_document_system/screens/user/user_home_screen.dart';
 import 'package:s_live_document_system/utils/logger.dart';
 import 'package:s_live_document_system/utils/supabase_test.dart';
 
-// Supabase 연결 정보 - 웹에서 .env 파일 로드 문제 해결을 위한 하드코딩
-const String supabaseUrl = 'https://jdtvghbafmwguwbbujxx.supabase.co';
-const String supabaseAnonKey =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkdHZnaGJhZm13Z3V3YmJ1anh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5MzU4MDEsImV4cCI6MjA1NzUxMTgwMX0.VOUAiN_YB1VJZl85rnM85fA5L54vvxocEmmZYVnzLiQ';
+// Supabase 연결 환경 변수 이름 정의
+const String envSupabaseUrl = 'SUPABASE_URL';
+const String envSupabaseAnonKey = 'SUPABASE_ANON_KEY';
 
 // Supabase 초기화 상태 Provider
 final supabaseInitializedProvider = StateProvider<bool>((ref) => false);
@@ -42,18 +45,48 @@ final supabaseInitProvider = FutureProvider<bool>((ref) async {
       Logger.info('Supabase 초기화 시작', tag: 'Main');
     }
 
-    // 환경 변수 로드 시도 (웹에서는 불가능할 수 있음)
-    String url = supabaseUrl;
-    String anonKey = supabaseAnonKey;
+    // 환경 변수 로드 시도
+    String? url;
+    String? anonKey;
 
     try {
-      await dotenv.load(fileName: ".env");
-      url = dotenv.env['SUPABASE_URL'] ?? supabaseUrl;
-      anonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? supabaseAnonKey;
+      // 웹 환경인지 확인
+      const bool isWeb = identical(0, 0.0);
+
+      if (!isWeb) {
+        // 네이티브 환경에서는 .env 파일에서 로드
+        await dotenv.load(fileName: ".env");
+        url = dotenv.env[envSupabaseUrl];
+        anonKey = dotenv.env[envSupabaseAnonKey];
+        Logger.info('네이티브용 .env 파일 로드 성공', tag: 'Main');
+      } else {
+        // 웹 환경에서는 assets에서 환경설정 로드 시도
+        try {
+          final envString = await rootBundle.loadString('assets/env.json');
+          final envMap = json.decode(envString) as Map<String, dynamic>;
+          url = envMap[envSupabaseUrl] as String?;
+          anonKey = envMap[envSupabaseAnonKey] as String?;
+          Logger.info('웹용 환경 설정 파일 로드 성공', tag: 'Main');
+        } catch (webError) {
+          Logger.warning('웹용 환경 설정 파일 로드 실패: $webError', tag: 'Main');
+          // 하드코딩된 값을 사용 (개발 목적으로만)
+          url = 'https://jdtvghbafmwguwbbujxx.supabase.co';
+          anonKey =
+              'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkdHZnaGJhZm13Z3V3YmJ1anh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5MzU4MDEsImV4cCI6MjA1NzUxMTgwMX0.VOUAiN_YB1VJZl85rnM85fA5L54vvxocEmmZYVnzLiQ';
+          Logger.warning('개발용 하드코딩된 값 사용 중 (보안 주의)', tag: 'Main');
+        }
+      }
+
+      if (url == null || anonKey == null) {
+        throw Exception(
+          '환경 변수가 로드되지 않았습니다: $envSupabaseUrl 또는 $envSupabaseAnonKey',
+        );
+      }
+
       Logger.info('환경 변수 로드 성공', tag: 'Main');
     } catch (e) {
-      Logger.warning('환경 변수 로드 실패, 하드코딩된 기본값 사용', tag: 'Main');
-      // 웹에서는 .env 로드가 실패할 수 있으므로 하드코딩된 값만 사용
+      Logger.error('환경 변수 로드 실패: ${e.toString()}', tag: 'Main');
+      rethrow; // Supabase 초기화 진행 불가
     }
 
     // 로그로 확인
@@ -63,16 +96,26 @@ final supabaseInitProvider = FutureProvider<bool>((ref) async {
       tag: 'Main',
     );
 
-    // Supabase 초기화 시도
-    await Supabase.initialize(
-      url: url,
-      anonKey: anonKey,
-      debug: true, // 프로덕션에서는 false로 설정
-    );
+    try {
+      // Supabase 초기화 시도
+      await Supabase.initialize(
+        url: url,
+        anonKey: anonKey,
+        debug: true, // 프로덕션에서는 false로 설정
+      );
 
-    Logger.info('Supabase 초기화 성공', tag: 'Main');
-    ref.read(supabaseInitializedProvider.notifier).state = true;
-    return true;
+      Logger.info('Supabase 초기화 성공', tag: 'Main');
+      ref.read(supabaseInitializedProvider.notifier).state = true;
+      return true;
+    } catch (initError) {
+      Logger.error('Supabase 초기화 실패: $initError', tag: 'Main');
+
+      // 연결 오류가 있어도 앱을 사용할 수 있도록 초기화 상태를 true로 설정
+      // 이는 개발 중 또는 오프라인 환경에서 앱 테스트를 가능하게 합니다
+      Logger.warning('연결 실패하였으나 앱 실행을 계속합니다', tag: 'Main');
+      ref.read(supabaseInitializedProvider.notifier).state = true;
+      return true;
+    }
   } catch (e, stack) {
     Logger.error(
       'Supabase 초기화 오류 발생',
@@ -86,7 +129,7 @@ final supabaseInitProvider = FutureProvider<bool>((ref) async {
 
 /// Supabase 테스트 화면 관련 Provider
 final showSupabaseTestProvider = StateProvider<bool>((ref) => false);
-final showConnectionTestProvider = StateProvider<bool>((ref) => true);
+final showConnectionTestProvider = StateProvider<bool>((ref) => false);
 
 class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
@@ -136,10 +179,16 @@ class _MyAppState extends ConsumerState<MyApp> {
           ),
         ),
       ),
-      home:
-          isSupabaseInitialized
-              ? _buildMainScreen()
-              : _buildLoadingScreen(initProgress),
+      initialRoute: '/',
+      routes: {
+        '/':
+            (context) =>
+                isSupabaseInitialized
+                    ? _buildMainScreen()
+                    : _buildLoadingScreen(initProgress),
+        '/admin': (context) => const AdminHomeScreen(),
+        '/user': (context) => const UserHomeScreen(),
+      },
     );
   }
 
@@ -172,7 +221,7 @@ class _MyAppState extends ConsumerState<MyApp> {
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () {
-                        ref.refresh(supabaseInitProvider);
+                        final _ = ref.refresh(supabaseInitProvider);
                       },
                       child: const Text('다시 시도'),
                     ),
@@ -196,10 +245,33 @@ class _MyAppState extends ConsumerState<MyApp> {
       return const SupabaseConnectionTestScreen();
     }
 
-    // 일반 테스트 화면 또는 메인 화면 표시
-    return ref.watch(showSupabaseTestProvider)
-        ? const SupabaseTestScreen()
-        : (authState.isLoggedIn ? const HomeScreen() : const LoginScreen());
+    // 테스트 모드
+    if (ref.watch(showSupabaseTestProvider)) {
+      return const SupabaseTestScreen();
+    }
+
+    // 로그인 상태 확인
+    if (!authState.isLoggedIn) {
+      return const LoginScreen();
+    }
+
+    // 로그인 상태라면 이메일로 판단하여 직접 화면 반환
+    try {
+      final userEmail = Supabase.instance.client.auth.currentUser?.email;
+      Logger.debug('메인 화면 결정 - 이메일: $userEmail', tag: 'Main');
+
+      if (userEmail != null && userEmail.toLowerCase() == 'admin@slive.com') {
+        Logger.debug('관리자 화면으로 이동', tag: 'Main');
+        return const AdminHomeScreen();
+      } else {
+        Logger.debug('일반 사용자 화면으로 이동', tag: 'Main');
+        return const UserHomeScreen();
+      }
+    } catch (e) {
+      Logger.error('사용자 이메일 확인 실패: $e', tag: 'Main');
+      // 오류 발생 시 기본적으로 사용자 화면으로 이동
+      return const UserHomeScreen();
+    }
   }
 }
 

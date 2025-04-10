@@ -104,40 +104,67 @@ class AuthProvider extends StateNotifier<AuthState> {
     }
 
     try {
+      // 디버깅 정보 표시
+      print('Fetching role for user: $userId');
+
       // Fetch user role from Supabase using the new syntax
       final result =
           await Supabase.instance.client
-              .from('public_users') // Ensure this table name is correct
-              .select('role')
+              .from('public_users')
+              .select('role, email, display_name')
               .eq('user_id', userId)
-              .maybeSingle(); // Use maybeSingle() as user might not have a profile entry yet
+              .single(); // 강제로 single() 사용 (오류 발생시 더 명확한 에러)
+
+      print('User role query result: $result');
 
       if (result == null) {
-        // Handle case where user profile or role is not found
-        state = state.copyWith(
-          userRole: null,
-          // Consider if this is an error or just a state (e.g., profile pending)
-          // errorMessage: 'User profile or role not found.',
-          clearErrorMessage:
-              true, // Clear previous errors if profile is just missing
-        );
+        print('Query result is null - no user profile found');
+        // 사용자 정보가 없으면 일반 사용자로 설정
+        state = state.copyWith(userRole: 'user', clearErrorMessage: true);
       } else {
         final role = result['role'] as String?;
-        state = state.copyWith(userRole: role, clearErrorMessage: true);
+        print('Found role: $role for user: ${result['email']}');
+        // 역할이 없으면 기본값으로 'user' 사용
+        state = state.copyWith(
+          userRole: role ?? 'user',
+          clearErrorMessage: true,
+        );
+
+        // 디버깅: 역할 업데이트 후 상태 확인
+        print('Updated state - userRole: ${state.userRole}');
       }
     } on PostgrestException catch (e) {
-      // Handle specific Postgrest errors (e.g., RLS issues, network problems)
-      print('Error fetching user role: ${e.message}');
-      state = state.copyWith(
-        userRole: null,
-        errorMessage: 'Failed to fetch role: ${e.message}',
-      );
+      print('PostgrestException fetching user role: ${e.message}');
+
+      // RLS 오류일 가능성이 높음 - 직접 관리자 확인 시도
+      try {
+        print('Trying alternative approach to check if admin');
+        final client = Supabase.instance.client;
+
+        // public_users에서 이메일로 확인 시도
+        final userEmail = client.auth.currentUser?.email;
+        print('Current user email: $userEmail');
+
+        if (userEmail != null && userEmail.toLowerCase() == 'admin@slive.com') {
+          print('Email matches admin email - setting role to admin');
+          state = state.copyWith(userRole: 'admin', clearErrorMessage: true);
+        } else {
+          // 일반 사용자로 설정
+          state = state.copyWith(userRole: 'user', clearErrorMessage: true);
+        }
+      } catch (innerError) {
+        print('Error in alternative role check: $innerError');
+        state = state.copyWith(
+          userRole: 'user', // 기본값으로 user 설정
+          errorMessage: 'Failed to fetch role: ${e.message}',
+        );
+      }
     } catch (e) {
-      // Handle other potential errors
       print('Unexpected error fetching user role: $e');
+      // 오류 발생해도 기본값으로 user 설정
       state = state.copyWith(
-        userRole: null,
-        errorMessage: 'An unexpected error occurred while fetching user role.',
+        userRole: 'user',
+        errorMessage: 'Error fetching role: $e',
       );
     }
   }
