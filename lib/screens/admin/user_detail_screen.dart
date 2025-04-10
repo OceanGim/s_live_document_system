@@ -57,10 +57,10 @@ class _UserDetailScreenState extends ConsumerState<UserDetailScreen> {
         orElse:
             () => UserModel(
               id: '',
-              email: '',
-              displayName: '',
-              phone: '',
-              userType: '',
+              email: null,
+              displayName: null,
+              phone: null,
+              userType: null,
               createdAt: DateTime.now(),
             ),
       );
@@ -76,7 +76,7 @@ class _UserDetailScreenState extends ConsumerState<UserDetailScreen> {
 
       setState(() {
         _userInfo = user;
-        _selectedRole = user.role;
+        _selectedRole = user.role ?? 'user';
         _initializeControllers(user);
       });
     });
@@ -84,9 +84,9 @@ class _UserDetailScreenState extends ConsumerState<UserDetailScreen> {
 
   /// 컨트롤러 초기화
   void _initializeControllers(UserModel user) {
-    _displayNameController.text = user.displayName;
-    _phoneController.text = user.phone;
-    _emailController.text = user.email;
+    _displayNameController.text = user.displayName ?? '';
+    _phoneController.text = user.phone ?? '';
+    _emailController.text = user.email ?? '';
 
     if (user.isCompany) {
       _companyNameController.text = user.companyName ?? '';
@@ -261,8 +261,8 @@ class _UserDetailScreenState extends ConsumerState<UserDetailScreen> {
                     ? Colors.teal
                     : Colors.orange,
             child: Text(
-              _userInfo!.displayName.isNotEmpty
-                  ? _userInfo!.displayName[0].toUpperCase()
+              _userInfo!.displayName?.isNotEmpty == true
+                  ? _userInfo!.displayName![0].toUpperCase()
                   : '?',
               style: const TextStyle(
                 fontSize: 36,
@@ -273,7 +273,7 @@ class _UserDetailScreenState extends ConsumerState<UserDetailScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            _userInfo!.displayName,
+            _userInfo!.displayName ?? '이름 없음',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
@@ -307,7 +307,7 @@ class _UserDetailScreenState extends ConsumerState<UserDetailScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  _userInfo!.userType,
+                  _userInfo!.userType ?? '일반',
                   style: const TextStyle(color: Colors.white),
                 ),
               ),
@@ -360,7 +360,9 @@ class _UserDetailScreenState extends ConsumerState<UserDetailScreen> {
             leading: const Icon(Icons.calendar_today),
             title: const Text('계정 생성일'),
             subtitle: Text(
-              '${_userInfo!.createdAt.year}년 ${_userInfo!.createdAt.month}월 ${_userInfo!.createdAt.day}일',
+              _userInfo!.createdAt != null
+                  ? '${_userInfo!.createdAt!.year}년 ${_userInfo!.createdAt!.month}월 ${_userInfo!.createdAt!.day}일'
+                  : '정보 없음',
             ),
           ),
           if (_userInfo!.lastSignedIn != null)

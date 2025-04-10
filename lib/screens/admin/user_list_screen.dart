@@ -32,10 +32,18 @@ class _UserListScreenState extends ConsumerState<UserListScreen> {
 
     final query = _searchQuery.toLowerCase();
     return users.where((user) {
-      return user.displayName.toLowerCase().contains(query) ||
-          user.email.toLowerCase().contains(query) ||
-          user.phone.toLowerCase().contains(query) ||
-          (user.companyName?.toLowerCase().contains(query) ?? false);
+      final nameMatch =
+          user.displayName?.toLowerCase().contains(query) ?? false;
+      final emailMatch = user.email?.toLowerCase().contains(query) ?? false;
+      final phoneMatch = user.phone?.toLowerCase().contains(query) ?? false;
+      final companyMatch =
+          user.companyInfo != null &&
+          user.companyInfo!['company_name'] != null &&
+          user.companyInfo!['company_name'].toString().toLowerCase().contains(
+            query,
+          );
+
+      return nameMatch || emailMatch || phoneMatch || companyMatch;
     }).toList();
   }
 
@@ -185,8 +193,8 @@ class UserListTile extends StatelessWidget {
                   : Colors.orange,
           radius: 24,
           child: Text(
-            user.displayName.isNotEmpty
-                ? user.displayName[0].toUpperCase()
+            user.displayName?.isNotEmpty == true
+                ? user.displayName![0].toUpperCase()
                 : '?',
             style: const TextStyle(
               fontSize: 18,
@@ -198,7 +206,7 @@ class UserListTile extends StatelessWidget {
         title: Row(
           children: [
             Text(
-              user.displayName,
+              user.displayName ?? '이름 없음',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 8),
@@ -221,9 +229,9 @@ class UserListTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text(user.email),
+            Text(user.email ?? '이메일 없음'),
             const SizedBox(height: 4),
-            Text(user.phone),
+            Text(user.phone ?? '전화번호 없음'),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -238,16 +246,18 @@ class UserListTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    user.userType,
+                    user.userType ?? '일반',
                     style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ),
                 const SizedBox(width: 8),
                 // 기업인 경우 기업명 표시
-                if (user.isCompany && user.companyName != null)
+                if (user.isCompany &&
+                    user.companyInfo != null &&
+                    user.companyInfo!['company_name'] != null)
                   Expanded(
                     child: Text(
-                      '${user.companyName}',
+                      '${user.companyInfo!['company_name']}',
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),

@@ -27,6 +27,23 @@ class UserInfoNotifier extends StateNotifier<UserModel?> {
     }
   }
 
+  /// DateTime 문자열 파싱 헬퍼 메서드
+  DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+
+    if (value is DateTime) return value;
+
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    return null;
+  }
+
   /// 사용자 정보 조회
   Future<void> _fetchUserInfo() async {
     if (userId == null || !mounted) {
@@ -52,23 +69,42 @@ class UserInfoNotifier extends StateNotifier<UserModel?> {
       final user = Supabase.instance.client.auth.currentUser;
 
       if (user != null && userData != null) {
+        // 기업 정보 준비
+        Map<String, dynamic>? companyInfo;
+        if (userData['user_type'] == 'company' &&
+            userData['company_name'] != null) {
+          companyInfo = {
+            'company_name': userData['company_name'],
+            'business_number': userData['business_number'],
+          };
+        }
+
+        // 인플루언서 정보 준비
+        Map<String, dynamic>? influencerInfo;
+        if (userData['user_type'] == 'influencer') {
+          influencerInfo = {
+            'platform': userData['platform'],
+            'platform_id': userData['platform_id'],
+            'subscriber_count': userData['subscriber_count'],
+          };
+        }
+
         // UserModel로 변환
         final userModel = UserModel(
           id: userId!,
-          email: user.email ?? '',
-          displayName: userData['display_name'] ?? '',
-          phone: userData['phone'] ?? '',
-          userType: userData['user_type'] ?? '',
+          email: user.email,
+          displayName: userData['display_name'],
+          phone: userData['phone'],
+          userType: userData['user_type'],
           role: userData['role'] ?? 'user',
-          companyName: userData['company_name'],
-          isEmailConfirmed: userData['is_email_confirmed'] ?? false,
-          createdAt: DateTime.parse(
-            userData['created_at'] ?? DateTime.now().toIso8601String(),
-          ),
-          lastSignedIn:
-              user.lastSignInAt != null
-                  ? DateTime.parse(user.lastSignInAt!)
-                  : null,
+          companyInfo: companyInfo,
+          influencerInfo: influencerInfo,
+          signatureUrl: userData['signature_url'],
+          createdAt: _parseDateTime(userData['created_at']),
+          lastSignInAt: _parseDateTime(user.lastSignInAt),
+          updatedAt: _parseDateTime(user.updatedAt),
+          metadata: user.userMetadata,
+          avatarUrl: userData['avatar_url'],
         );
 
         if (mounted) {
@@ -208,18 +244,45 @@ final allUsersProvider = FutureProvider<List<UserModel>>((ref) async {
     // UserModel 리스트로 변환
     final users =
         usersData.map((data) {
+          // 기업 정보 준비
+          Map<String, dynamic>? companyInfo;
+          if (data['user_type'] == 'company' && data['company_name'] != null) {
+            companyInfo = {
+              'company_name': data['company_name'],
+              'business_number': data['business_number'],
+            };
+          }
+
+          // 인플루언서 정보 준비
+          Map<String, dynamic>? influencerInfo;
+          if (data['user_type'] == 'influencer') {
+            influencerInfo = {
+              'platform': data['platform'],
+              'platform_id': data['platform_id'],
+              'subscriber_count': data['subscriber_count'],
+            };
+          }
+
+          DateTime? createdAt;
+          try {
+            createdAt =
+                data['created_at'] != null
+                    ? DateTime.parse(data['created_at'])
+                    : null;
+          } catch (_) {}
+
           return UserModel(
             id: data['user_id'],
-            email: data['email'] ?? '',
-            displayName: data['display_name'] ?? '',
-            phone: data['phone'] ?? '',
-            userType: data['user_type'] ?? '',
+            email: data['email'],
+            displayName: data['display_name'],
+            phone: data['phone'],
+            userType: data['user_type'],
             role: data['role'] ?? 'user',
-            companyName: data['company_name'],
-            isEmailConfirmed: data['is_email_confirmed'] ?? false,
-            createdAt: DateTime.parse(
-              data['created_at'] ?? DateTime.now().toIso8601String(),
-            ),
+            companyInfo: companyInfo,
+            influencerInfo: influencerInfo,
+            signatureUrl: data['signature_url'],
+            createdAt: createdAt,
+            avatarUrl: data['avatar_url'],
           );
         }).toList();
 

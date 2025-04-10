@@ -52,12 +52,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void _loadUserData() {
     final userInfo = ref.read(userInfoProvider);
     if (userInfo != null) {
-      _displayNameController.text = userInfo.displayName;
-      _phoneController.text = userInfo.phone;
-      _emailController.text = userInfo.email;
+      _displayNameController.text = userInfo.displayName ?? '';
+      _phoneController.text = userInfo.phone ?? '';
+      _emailController.text = userInfo.email ?? '';
 
       if (userInfo.isCompany) {
-        _companyNameController.text = userInfo.companyName ?? '';
+        // companyInfo에서 company_name 추출
+        final companyName =
+            userInfo.companyInfo != null &&
+                    userInfo.companyInfo!.containsKey('company_name')
+                ? userInfo.companyInfo!['company_name'] as String?
+                : '';
+        _companyNameController.text = companyName ?? '';
       }
     }
   }
@@ -78,11 +84,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         throw Exception('사용자 정보를 찾을 수 없습니다.');
       }
 
+      // 기업 정보 처리
+      Map<String, dynamic>? companyInfo = userInfo.companyInfo;
+      if (userInfo.isCompany) {
+        companyInfo =
+            userInfo.companyInfo != null
+                ? Map<String, dynamic>.from(userInfo.companyInfo!)
+                : <String, dynamic>{};
+        companyInfo['company_name'] = _companyNameController.text.trim();
+      }
+
       final updatedUser = userInfo.copyWith(
         displayName: _displayNameController.text.trim(),
         phone: _phoneController.text.trim(),
-        companyName:
-            userInfo.isCompany ? _companyNameController.text.trim() : null,
+        companyInfo: companyInfo,
       );
 
       // UserInfoProvider를 통해 사용자 정보 업데이트
@@ -177,8 +192,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       radius: 50,
                       backgroundColor: Theme.of(context).primaryColor,
                       child: Text(
-                        userInfo.displayName.isNotEmpty
-                            ? userInfo.displayName[0].toUpperCase()
+                        userInfo.displayName?.isNotEmpty == true
+                            ? userInfo.displayName![0].toUpperCase()
                             : '?',
                         style: const TextStyle(
                           fontSize: 36,
@@ -188,11 +203,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      userInfo.displayName,
+                      userInfo.displayName ?? '이름 없음',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     Text(
-                      userInfo.email,
+                      userInfo.email ?? '이메일 없음',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 8),
@@ -207,7 +222,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 8),
                     Chip(
                       label: Text(
-                        userInfo.userType,
+                        userInfo.userType ?? '일반',
                         style: const TextStyle(color: Colors.white),
                       ),
                       backgroundColor:
@@ -275,7 +290,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 leading: const Icon(Icons.calendar_today),
                 title: const Text('계정 생성일'),
                 subtitle: Text(
-                  '${userInfo.createdAt.year}년 ${userInfo.createdAt.month}월 ${userInfo.createdAt.day}일',
+                  userInfo.createdAt != null
+                      ? '${userInfo.createdAt!.year}년 ${userInfo.createdAt!.month}월 ${userInfo.createdAt!.day}일'
+                      : '정보 없음',
                 ),
               ),
 
