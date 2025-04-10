@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:s_live_document_system/providers/auth_provider.dart';
 import 'package:s_live_document_system/providers/user_provider.dart';
-import 'package:s_live_document_system/screens/admin/create_admin_screen.dart';
 import 'package:s_live_document_system/screens/admin/user_list_screen.dart';
 import 'package:s_live_document_system/screens/database/database_migration_screen.dart';
 import 'package:s_live_document_system/utils/supabase_sql_executor.dart';
@@ -134,14 +133,15 @@ class AdminHomeScreen extends ConsumerWidget {
                             );
                           },
                         ),
+                        // 관리자 생성 기능 대신 다른 기능으로 대체
                         _buildQuickAccessButton(
                           context,
-                          icon: Icons.admin_panel_settings,
-                          label: '관리자 생성',
+                          icon: Icons.settings,
+                          label: '시스템 설정',
                           onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => const CreateAdminScreen(),
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('시스템 설정 기능은 아직 구현되지 않았습니다'),
                               ),
                             );
                           },
