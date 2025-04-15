@@ -54,6 +54,7 @@ class _EquipmentRentalFormState extends ConsumerState<EquipmentRentalForm> {
     'switcher': {'name': '스위쳐', 'max': 1, 'unit': '대'},
     'capture_board': {'name': '캡쳐보드', 'max': 2, 'unit': '대'},
     'hdmi_splitter': {'name': 'HDMI분배기', 'max': 1, 'unit': '대'},
+    'wireless_mic': {'name': '무선마이크', 'max': 5, 'unit': '개'},
     'multi_tap': {'name': '멀티탭', 'max': 5, 'unit': '개'},
     'reel_cable': {'name': '릴선', 'max': 1, 'unit': '개'},
     'hdmi_cable': {'name': 'HDMI 케이블', 'max': 6, 'unit': '개'},

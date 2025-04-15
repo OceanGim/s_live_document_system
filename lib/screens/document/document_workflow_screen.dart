@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:s_live_document_system/providers/auth_provider.dart';
+import 'package:s_live_document_system/providers/document_provider.dart';
+import 'package:s_live_document_system/providers/document_workflow_provider.dart';
+import 'package:s_live_document_system/screens/document/equipment_rental_form.dart';
+import 'package:s_live_document_system/screens/document/facility_agreement_form.dart';
+import 'package:s_live_document_system/screens/document/portrait_rights_form.dart';
+import 'package:s_live_document_system/screens/document/privacy_agreement_form.dart';
+import 'package:s_live_document_system/screens/document/satisfaction_survey_form.dart';
 import 'package:s_live_document_system/utils/logger.dart';
 
 /// 문서 작성 워크플로우 화면
@@ -23,13 +30,15 @@ class _DocumentWorkflowScreenState
   static const int STEP_PRIVACY = 3; // 개인정보 수집이용 동의서
   static const int STEP_EQUIPMENT = 4; // 장비대여 신청서
   static const int STEP_SURVEY = 5; // 만족도 조사
-  static const int STEP_COMPLETE = 6; // 작성 완료
+  static const int STEP_PREVIEW = 6; // 미리보기 및 최종 확인
+  static const int STEP_COMPLETE = 7; // 작성 완료
 
   // 현재 단계
   int _currentStep = STEP_INTRO;
 
   // 초상권 동의서 인원수
   int _portraitParticipantCount = 1;
+  bool _portraitParticipantInputComplete = false; // 참가자 수 입력 완료 여부
 
   // 각 서류 완료 상태
   bool _facilityCompleted = false;
@@ -81,6 +90,8 @@ class _DocumentWorkflowScreenState
         return '장비대여 신청서';
       case STEP_SURVEY:
         return '만족도 조사';
+      case STEP_PREVIEW:
+        return '작성 내용 확인';
       case STEP_COMPLETE:
         return '서류 작성 완료';
       default:
@@ -94,15 +105,17 @@ class _DocumentWorkflowScreenState
       case STEP_INTRO:
         return _buildIntroStep();
       case STEP_FACILITY:
-        return _buildPlaceholderContent('스튜디오 시설 이용자 준수사항 내용이 표시됩니다.');
+        return _buildFacilityAgreementStep();
       case STEP_PORTRAIT:
         return _buildPortraitRightsStep();
       case STEP_PRIVACY:
-        return _buildPlaceholderContent('개인정보 수집이용 동의서 내용이 표시됩니다.');
+        return _buildPrivacyAgreementContent();
       case STEP_EQUIPMENT:
-        return _buildPlaceholderContent('장비대여 신청서 양식이 표시됩니다.');
+        return _buildEquipmentRentalContent();
       case STEP_SURVEY:
-        return _buildPlaceholderContent('만족도 조사 양식이 표시됩니다.');
+        return _buildSatisfactionSurveyContent();
+      case STEP_PREVIEW:
+        return _buildPreviewStep();
       case STEP_COMPLETE:
         return _buildCompleteStep();
       default:
@@ -183,89 +196,130 @@ class _DocumentWorkflowScreenState
 
   // 초상권 이용동의서 단계
   Widget _buildPortraitRightsStep() {
-    return SingleChildScrollView(
+    // 먼저 참가자 수 입력 화면을 보여주고, 입력 후 동의서 화면으로 이동
+    if (!_portraitParticipantInputComplete) {
+      return _buildParticipantCountInput();
+    }
+
+    // 워크플로우 파라미터 생성
+    final params = DocumentWorkflowProviderParams(
+      documentType: 'portrait_rights',
+    );
+
+    // DocumentWorkflowNotifier에 폼 데이터 설정을 지연 실행으로 처리
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(documentWorkflowProvider.notifier).setFormData({
+          'documentType': 'portrait_rights',
+          'participantCount': _portraitParticipantCount,
+        });
+      }
+    });
+
+    return PortraitRightsForm(
+      onCompleted: () {
+        setState(() {
+          _portraitCompleted = true;
+          _currentStep = STEP_PRIVACY; // 다음 단계로 이동
+        });
+      },
+      providerParams: params,
+      participantCount: _portraitParticipantCount,
+    );
+  }
+
+  // 참가자 수 입력 화면
+  Widget _buildParticipantCountInput() {
+    return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '초상권 이용동의서',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    '이 양식은 영상 촬영에 출연하는 인물의 초상권 이용에 관한 동의서입니다. '
-                    '출연자 수만큼 작성이 필요합니다.',
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    '참가자 인원수:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  // 참가자 인원수 설정
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle),
-                        onPressed:
-                            _portraitParticipantCount > 1
-                                ? () {
-                                  setState(() {
-                                    _portraitParticipantCount--;
-                                  });
-                                }
-                                : null,
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            '$_portraitParticipantCount명',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle),
-                        onPressed: () {
-                          setState(() {
-                            _portraitParticipantCount++;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.people, size: 64, color: Colors.blue),
+            const SizedBox(height: 24),
+            const Text(
+              '촬영에 참여하는 인원 수를 입력해주세요',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-          ),
-          const SizedBox(height: 24),
-          // 참가자 목록
-          ...List.generate(
-            _portraitParticipantCount,
-            (index) => _buildParticipantCard(index),
-          ),
-          const SizedBox(height: 16),
-          // 초상권 동의서 건너뛰기 버튼
-          OutlinedButton(
-            onPressed: () {
-              setState(() {
-                _portraitCompleted = true;
-                _currentStep = STEP_PRIVACY;
-              });
-            },
-            child: const Text('이 서류는 선택사항입니다. 건너뛰기'),
-          ),
-        ],
+            const SizedBox(height: 16),
+            const Text(
+              '참가자 수에 따라 각 참가자의 서명을 받아야 합니다.\n참가자 수를 정확히 입력해주세요.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 32),
+            // 참가자 수 선택 UI
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  onPressed:
+                      _portraitParticipantCount > 1
+                          ? () {
+                            setState(() {
+                              _portraitParticipantCount--;
+                            });
+                          }
+                          : null,
+                  icon: const Icon(Icons.remove_circle),
+                  iconSize: 36,
+                  color: Colors.blue,
+                ),
+                Container(
+                  width: 80,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.blue),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _portraitParticipantCount.toString(),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed:
+                      _portraitParticipantCount < 10
+                          ? () {
+                            setState(() {
+                              _portraitParticipantCount++;
+                            });
+                          }
+                          : null,
+                  icon: const Icon(Icons.add_circle),
+                  iconSize: 36,
+                  color: Colors.blue,
+                ),
+              ],
+            ),
+            const SizedBox(height: 48),
+            // 확인 버튼
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _portraitParticipantInputComplete = true;
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 64,
+                  vertical: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('확인', style: TextStyle(fontSize: 18)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -299,13 +353,76 @@ class _DocumentWorkflowScreenState
             icon: const Icon(Icons.home),
             label: const Text('홈으로 돌아가기'),
           ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () async {
+              // 로그아웃 처리
+              try {
+                final authNotifier = ref.read(authProvider.notifier);
+                await authNotifier.signOut();
+
+                // 안전하게 홈화면으로 전환
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil('/', (route) => false);
+              } catch (e) {
+                Logger.error('로그아웃 오류', error: e, tag: 'DocumentWorkflow');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('로그아웃 중 오류가 발생했습니다.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.logout),
+            label: const Text('로그아웃하기'),
+          ),
         ],
       ),
     );
   }
 
+  // 시설 이용 준수사항 동의서 단계
+  Widget _buildFacilityAgreementStep() {
+    // 워크플로우 파라미터 생성
+    final params = DocumentWorkflowProviderParams(
+      documentType: 'facility_guidelines',
+    );
+
+    // DocumentWorkflowNotifier에 폼 데이터 설정은 initState 또는 버튼 이벤트에서 수행해야 함
+    // build 메서드에서 호출하면 안됨
+    // 대신 지연 실행으로 처리
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(documentWorkflowProvider.notifier).setFormData({
+          'documentType': 'facility_guidelines',
+        });
+      }
+    });
+
+    return FacilityAgreementForm(
+      onCompleted: () {
+        setState(() {
+          _facilityCompleted = true;
+          _currentStep = STEP_PORTRAIT; // 다음 단계로 이동
+        });
+      },
+      providerParams: params,
+    );
+  }
+
   // 임시 내용 표시 위젯
   Widget _buildPlaceholderContent(String message) {
+    // 현재 단계에 따라 콘텐츠 렌더링
+    if (_currentStep == STEP_PRIVACY) {
+      return _buildPrivacyAgreementContent();
+    } else if (_currentStep == STEP_EQUIPMENT) {
+      return _buildEquipmentRentalContent();
+    } else if (_currentStep == STEP_SURVEY) {
+      return _buildSatisfactionSurveyContent();
+    }
+
     // 현재 단계에 맞게 건너뛰기 버튼을 포함시킬지 결정
     final bool showSkipButton =
         _currentStep == STEP_PRIVACY || _currentStep == STEP_EQUIPMENT;
@@ -328,29 +445,54 @@ class _DocumentWorkflowScreenState
               style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 32),
-            // 작성 완료 버튼
-            ElevatedButton(
+            // 동의 및 제출 버튼
+            ElevatedButton.icon(
               onPressed: () {
-                // 작성 완료 처리 후 자동으로 다음 단계로 이동
-                setState(() {
-                  // 현재 단계 완료 처리
-                  _completeCurrentStep();
+                // 사용자에게 동의 확인받기
+                showDialog(
+                  context: context,
+                  builder:
+                      (context) => AlertDialog(
+                        title: const Text('동의 및 제출 확인'),
+                        content: const Text(
+                          '입력하신 내용에 동의하며 제출하시겠습니까?\n제출 후에는 수정이 제한될 수 있습니다.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('취소'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
 
-                  // 다음 단계로 자동 이동
-                  if (_currentStep < STEP_COMPLETE) {
-                    _currentStep++;
-                  }
+                              // 작성 완료 처리 후 자동으로 다음 단계로 이동
+                              setState(() {
+                                // 현재 단계 완료 처리
+                                _completeCurrentStep();
 
-                  // 모든 단계가 완료되었다면 완료 화면으로 이동
-                  if (_facilityCompleted &&
-                      _equipmentCompleted &&
-                      _surveyCompleted &&
-                      _currentStep == STEP_SURVEY) {
-                    _currentStep = STEP_COMPLETE;
-                  }
-                });
+                                // 다음 단계로 자동 이동
+                                if (_currentStep < STEP_COMPLETE) {
+                                  _currentStep++;
+                                }
+
+                                // 모든 단계가 완료되었다면 완료 화면으로 이동
+                                if (_facilityCompleted &&
+                                    _equipmentCompleted &&
+                                    _surveyCompleted &&
+                                    _currentStep == STEP_SURVEY) {
+                                  _currentStep = STEP_COMPLETE;
+                                }
+                              });
+                            },
+                            child: const Text('동의 및 제출'),
+                          ),
+                        ],
+                      ),
+                );
               },
-              child: const Text('작성 완료'),
+              icon: const Icon(Icons.check_circle),
+              label: const Text('동의 및 제출'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).primaryColor,
                 foregroundColor: Colors.white,
@@ -382,6 +524,310 @@ class _DocumentWorkflowScreenState
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  // 개인정보 수집이용 동의서 화면
+  Widget _buildPrivacyAgreementContent() {
+    // 워크플로우 파라미터 생성
+    final params = DocumentWorkflowProviderParams(
+      documentType: 'personal_info',
+    );
+
+    // DocumentWorkflowNotifier에 폼 데이터 설정을 지연 실행으로 처리
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(documentWorkflowProvider.notifier).setFormData({
+          'documentType': 'personal_info',
+        });
+      }
+    });
+
+    return PrivacyAgreementForm(
+      onCompleted: () {
+        setState(() {
+          _privacyCompleted = true;
+          _currentStep = STEP_EQUIPMENT; // 다음 단계로 이동
+        });
+      },
+      providerParams: params,
+    );
+  }
+
+  // 만족도 조사 화면
+  Widget _buildSatisfactionSurveyContent() {
+    // 워크플로우 파라미터 생성
+    final params = DocumentWorkflowProviderParams(
+      documentType: 'satisfaction_survey',
+    );
+
+    // DocumentWorkflowNotifier에 폼 데이터 설정을 지연 실행으로 처리
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(documentWorkflowProvider.notifier).setFormData({
+          'documentType': 'satisfaction_survey',
+        });
+      }
+    });
+
+    return SatisfactionSurveyForm(
+      onCompleted: () {
+        setState(() {
+          _surveyCompleted = true;
+          // 모든 필수 단계가 완료되었다면 미리보기 단계로 이동
+          if (_facilityCompleted && _equipmentCompleted) {
+            _currentStep = STEP_PREVIEW;
+          } else {
+            // 아직 완료되지 않은 필수 단계가 있으면 다음 단계로 이동
+            _currentStep = STEP_PREVIEW;
+          }
+        });
+      },
+      providerParams: params,
+    );
+  }
+
+  // 장비 대여 신청서 화면
+  Widget _buildEquipmentRentalContent() {
+    // 건너뛰기 버튼을 포함한 화면 구성
+    return Column(
+      children: [
+        Expanded(child: _buildEquipmentRentalForm()),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: OutlinedButton.icon(
+            onPressed: () {
+              // 건너뛰기 전 확인 대화상자 표시
+              showDialog(
+                context: context,
+                builder:
+                    (context) => AlertDialog(
+                      title: const Text('장비 대여 신청서 건너뛰기'),
+                      content: const Text(
+                        '장비 대여가 필요하지 않으시면 건너뛸 수 있습니다. 계속하시겠습니까?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('취소'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            setState(() {
+                              _equipmentCompleted = true;
+                              _currentStep = STEP_SURVEY; // 다음 단계로 이동
+                            });
+                          },
+                          child: const Text('건너뛰기'),
+                        ),
+                      ],
+                    ),
+              );
+            },
+            icon: const Icon(Icons.skip_next),
+            label: const Text('장비 대여가 필요하지 않습니다. 건너뛰기'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 장비 대여 폼 위젯
+  Widget _buildEquipmentRentalForm() {
+    // 워크플로우 파라미터 생성
+    final params = DocumentWorkflowProviderParams(
+      documentType: 'equipment_rental',
+    );
+
+    // DocumentWorkflowNotifier에 폼 데이터 설정을 지연 실행으로 처리
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(documentWorkflowProvider.notifier).setFormData({
+          'documentType': 'equipment_rental',
+        });
+      }
+    });
+
+    return EquipmentRentalForm(
+      onCompleted: () {
+        setState(() {
+          _equipmentCompleted = true;
+          _currentStep = STEP_SURVEY; // 다음 단계로 이동
+        });
+      },
+      providerParams: params,
+    );
+  }
+
+  // 미리보기 및 최종 확인 단계
+  Widget _buildPreviewStep() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 제목
+          const Text(
+            '작성하신 내용을 확인해주세요',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+
+          // 작성한 서류 목록 카드
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '작성 완료한 서류',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 필수 서류
+                  _buildCompletedDocumentItem(
+                    '시설 이용자 준수사항',
+                    true,
+                    _facilityCompleted,
+                  ),
+                  _buildCompletedDocumentItem(
+                    '장비대여 신청서',
+                    true,
+                    _equipmentCompleted,
+                  ),
+                  _buildCompletedDocumentItem('만족도 조사', true, _surveyCompleted),
+
+                  // 선택 서류
+                  _buildCompletedDocumentItem(
+                    '초상권 이용동의서',
+                    false,
+                    _portraitCompleted,
+                  ),
+                  _buildCompletedDocumentItem(
+                    '개인정보 수집이용 동의서',
+                    false,
+                    _privacyCompleted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // 위의 정보가 맞는지 확인하는 텍스트
+          const Text(
+            '위 내용이 맞으면 아래 버튼을 눌러 제출을 완료해주세요.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontStyle: FontStyle.italic),
+          ),
+          const SizedBox(height: 32),
+
+          // 제출 완료 버튼
+          ElevatedButton.icon(
+            onPressed: () async {
+              // 로딩 표시
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder:
+                    (context) =>
+                        const Center(child: CircularProgressIndicator()),
+              );
+
+              // 모든 문서를 DB에 저장
+              final saveResult = await _saveAllDocumentsToDb();
+
+              // 로딩 다이얼로그 닫기
+              Navigator.of(context, rootNavigator: true).pop();
+
+              if (saveResult) {
+                // 저장 성공 시 완료 화면으로 이동
+                setState(() {
+                  _currentStep = STEP_COMPLETE;
+                });
+
+                // 성공 메시지 표시
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('모든 서류가 성공적으로 제출되었습니다.'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              } else {
+                // 저장 실패 시 오류 메시지 표시
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('서류 저장 중 오류가 발생했습니다. 다시 시도해주세요.'),
+                    backgroundColor: Colors.red,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.check_circle),
+            label: const Text('모든 서류 제출 완료'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 완료된 문서 항목
+  Widget _buildCompletedDocumentItem(
+    String title,
+    bool isRequired,
+    bool isCompleted,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          // 상태 아이콘
+          isCompleted
+              ? const Icon(Icons.check_circle, color: Colors.green)
+              : const Icon(Icons.cancel, color: Colors.red),
+          const SizedBox(width: 12),
+
+          // 문서 제목
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontWeight: isRequired ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+
+          // 필수 여부 표시
+          if (isRequired)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '필수',
+                style: TextStyle(
+                  color: Colors.red.shade900,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -507,6 +953,41 @@ class _DocumentWorkflowScreenState
         ),
       ),
     );
+  }
+
+  // DB에 모든 서류 저장
+  Future<bool> _saveAllDocumentsToDb() async {
+    // 개발 모드에서는 DB 저장 없이 성공으로 처리
+    // 실제 DB 테이블이 준비되지 않은 상태에서 테스트하기 위함
+    try {
+      // 로딩 표시 (시각적 피드백)
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // 개발 테스트 환경을 위해 저장 시뮬레이션 (2초 지연)
+      await Future.delayed(const Duration(seconds: 2));
+
+      // 로그 기록
+      Logger.info('개발 테스트 모드: 문서 저장 시뮬레이션 완료', tag: 'DocumentWorkflow');
+
+      // 로딩 다이얼로그 닫기
+      Navigator.of(context, rootNavigator: true).pop();
+
+      // 항상 성공 반환
+      return true;
+    } catch (e) {
+      Logger.error('개발 테스트 중 오류', error: e, tag: 'DocumentWorkflow');
+
+      // 로딩 다이얼로그 닫기 시도
+      try {
+        Navigator.of(context, rootNavigator: true).pop();
+      } catch (_) {}
+
+      return false;
+    }
   }
 
   // 하단 네비게이션 버튼
@@ -670,13 +1151,13 @@ class _DocumentWorkflowScreenState
       });
     }
 
-    // 모든 필수 서류 작성이 완료되면 완료 단계로 이동
+    // 모든 필수 서류 작성이 완료되면 미리보기 단계로 이동
     if (_facilityCompleted &&
         _equipmentCompleted &&
         _surveyCompleted &&
         _currentStep == STEP_SURVEY) {
       setState(() {
-        _currentStep = STEP_COMPLETE;
+        _currentStep = STEP_PREVIEW;
       });
     }
   }
