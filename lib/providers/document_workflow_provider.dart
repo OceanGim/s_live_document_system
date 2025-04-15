@@ -49,6 +49,9 @@ class DocumentWorkflowState {
   /// 워크플로우 상태
   final DocumentWorkflowStatus status;
 
+  /// 폼 데이터
+  final Map<String, dynamic>? formData;
+
   /// 기본 생성자
   DocumentWorkflowState({
     required this.currentStep,
@@ -57,6 +60,7 @@ class DocumentWorkflowState {
     this.signatureUrl,
     required this.performers,
     this.status = DocumentWorkflowStatus.inProgress,
+    this.formData,
   });
 
   /// 초기 상태 생성
@@ -79,6 +83,7 @@ class DocumentWorkflowState {
     String? signatureUrl,
     List<Map<String, dynamic>>? performers,
     DocumentWorkflowStatus? status,
+    Map<String, dynamic>? formData,
   }) {
     return DocumentWorkflowState(
       currentStep: currentStep ?? this.currentStep,
@@ -87,6 +92,7 @@ class DocumentWorkflowState {
       signatureUrl: signatureUrl ?? this.signatureUrl,
       performers: performers ?? this.performers,
       status: status ?? this.status,
+      formData: formData ?? this.formData,
     );
   }
 }
@@ -192,6 +198,23 @@ class DocumentWorkflowNotifier extends StateNotifier<DocumentWorkflowState> {
   /// 워크플로우 상태 설정
   void setWorkflowStatus(DocumentWorkflowStatus status) {
     state = state.copyWith(status: status);
+  }
+
+  /// 폼 데이터 업데이트
+  void setFormData(Map<String, dynamic> data) {
+    // 기존 데이터와 새 데이터를 병합하여 상태를 유지합니다.
+    Map<String, dynamic> mergedData = {};
+
+    // 기존 데이터가 있으면 복사
+    if (state.formData != null) {
+      mergedData.addAll(state.formData!);
+    }
+
+    // 새 데이터로 업데이트 또는 추가
+    mergedData.addAll(data);
+
+    // 상태 업데이트
+    state = state.copyWith(formData: mergedData);
   }
 
   /// 워크플로우 초기화
