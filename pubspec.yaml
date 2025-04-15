@@ -41,13 +41,18 @@ dependencies:
   gsheets: ^0.5.0
   encrypt: ^5.0.3
   image_picker: ^1.1.2
-  image: ^4.5.4
+  image: ^4.3.0
+  uuid: ^4.5.1
   path_provider: ^2.1.5
   signature: ^6.0.0
   flutter_dotenv: ^5.2.1
   googleapis_auth: ^1.6.0
   intl: ^0.20.2
   url_launcher: ^6.3.1
+  table_calendar: ^3.1.0
+  shared_preferences: ^2.2.2
+  excel: ^2.1.0
+  fl_chart: ^0.62.0
 
 dev_dependencies:
   flutter_test:
